@@ -1,0 +1,196 @@
+---
+title: "Exam Study Analysis by Three-Level Mixed Effect Model with Two Autoregressive Processes"
+author: "Tzu-Yao Lin"
+date: last-modified
+execute:
+  eval: true
+  warning: false
+  cache: false
+params:
+  model_name: "default"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    self-contained: true
+    code-fold: false
+    code-tools: true
+---
+
+# `{r} params$model_name` results
+
+# Setup
+
+First, we need to load the necessary packages.
+
+```{r}
+#| label: load-packages
+
+library(tidyverse)
+theme_set(theme_bw(base_size = 14))
+library(lubridate)
+library(tsibble)
+library(cmdstanr)
+register_knitr_engine(override = FALSE)
+library(posterior)
+library(bayesplot)
+color_scheme_set("blue")
+```
+
+# Load data
+
+```{r}
+#| label: load-data
+ 
+data <- read_rds("data/exam_data.rds")
+
+model_name <- params$model_name
+# model_name <- "exam_3l-lmm_ZHm_Seed20250616"
+
+is_ARd <- str_detect(model_name, "ARd")
+is_Hd <- str_detect(model_name, "Hd")
+is_ARm <- str_detect(model_name, "ARm")
+is_Hm <- str_detect(model_name, "Hm")
+```
+
+
+# MCMC check
+
+```{r}
+#| label: load-lmm-fit
+lmm_fit <- as_cmdstan_fit(list.files(str_glue("stan/draws/{model_name}"), 
+                                     full.names = TRUE))
+# write_rds(lmm_fit, str_glue("stan/{model_name}.rds"))
+# lmm_fit <- read_rds("stan/{model_name}.rds")
+
+# lmm_summary <- lmm_fit$summary()
+# write_csv(lmm_summary, str_glue("stan/summary/{model_name}_summary.csv"))
+```
+
+```{r}
+#| label: lmm-draws
+ 
+lmm_draws <- lmm_fit$draws(format = "df") |> thin_draws(thin = 10)
+
+selected_subj <- c(5, 32, 38, 47, 58, 66, 71, 99, 101)
+```
+
+Fixed and random effects
+```{r}
+#| label: lmm-trace-fix-and-random-effect
+mcmc_trace(lmm_draws, pars = "beta")
+lmm_draws |> subset_draws(variable = paste0("s[", selected_subj, "]")) |> mcmc_trace()
+lmm_draws |> subset_draws(variable = paste0("b[", selected_subj, "]")) |> mcmc_trace()
+mcmc_trace(lmm_draws, regex_pars = "^d\\[8,\\d+\\]")
+```
+
+```{r}
+#| label: lmm-trace-fix-and-random-sd
+mcmc_trace(lmm_draws, pars = c("psi_s", "psi_b"))
+mcmc_trace(lmm_draws, regex_pars = "psi_d")
+```
+
+
+Autoregressive parameters
+```{r}
+#| label: lmm-trace-phi
+pars_phi <- vector("character")
+pars_tau <- vector("character")
+if (is_ARd) {
+  pars_phi <- c(pars_phi, "phi_d")
+  pars_tau <- c(pars_tau, "tau2_d")
+}
+if (is_ARm) {
+  pars_phi <- c(pars_phi, "phi_m")
+  pars_tau <- c(pars_tau, "tau2_m")
+}
+if (is_ARd || is_ARm) {
+  mcmc_trace(lmm_draws, pars = pars_phi)
+}
+```
+
+```{r}
+#| label: lmm-trace-tau
+if (is_ARd || is_ARm) {
+  mcmc_trace(lmm_draws, pars = pars_tau)
+}
+```
+
+Measurement errors
+
+```{r}
+#| label: lmm-trace-error
+mcmc_trace(lmm_draws, regex_pars = "sigma_epsilon")
+```
+
+Reliability
+```{r}
+#| label: lmm-trace-rel
+mcmc_trace(lmm_draws, pars = c("rel_T"))
+```
+
+
+# Fitting results
+
+```{r}
+#| label: lmm-post-random-effect-sd
+mcmc_intervals(lmm_draws, regex_pars = "psi_[bsd]")
+```
+
+```{r}
+#| label: lmm-post-phi
+if (is_ARd || is_ARm) { 
+  mcmc_intervals(lmm_draws, regex_pars = pars_phi)
+}
+```
+```{r}
+#| label: lmm-post-tau
+if (is_ARd || is_ARm) {
+  mcmc_intervals(lmm_draws, regex_pars = pars_tau)
+}
+```
+
+```{r}
+#| label: lmm-post-Hd
+mcmc_intervals(lmm_draws, regex_pars = "psi_d") 
+```
+
+```{r}
+#| label: lmm-post-error
+mcmc_intervals(lmm_draws, regex_pars = "sigma_epsilon")
+```
+
+```{r}
+#| label: lmm-post-rel
+mcmc_intervals(lmm_draws, regex_pars = "rel_T")
+```
+
+```{r}
+#| label: fig-lmm-fit
+#| fig-cap: The fitted results for Model 1 
+
+.y_hat_summary_lmm <- lmm_fit$summary("y_hat", mean, median, quantile2) 
+
+y_hat_summary_lmm <- .y_hat_summary_lmm |> 
+  mutate(Indices = str_extract_all(variable, "\\d+"), 
+         Participant = map_dbl(Indices, \(x) as.integer(x[1])),
+         Day = map_dbl(Indices, \(x) as.integer(x[2])),
+         Moment = map_dbl(Indices, \(x) as.integer(x[3])))
+
+data_predict_lmm <- data |> 
+  left_join(y_hat_summary_lmm)
+
+data_predict_lmm |> 
+  filter(Participant %in% selected_subj) |> 
+  mutate(Date_time = as_datetime(days(Day) + Time)) |> 
+  ggplot(aes(x = Date_time, y = Neg_aff)) + 
+  geom_line() + geom_point() +
+  geom_line(aes(y = mean), linetype = "dashed") +
+  geom_ribbon(aes(ymin = q5, ymax = q95), alpha = 0.25) +
+  # coord_cartesian(ylim = c(-20, 100)) +
+  scale_x_datetime(breaks = as_datetime(1:9 * 86400),
+                   labels = paste("Day", 1:9)) +
+  facet_grid(Participant ~ ., space = "free_y") 
+```
+
