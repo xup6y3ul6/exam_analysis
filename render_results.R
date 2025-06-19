@@ -2,9 +2,9 @@ library(quarto)
 library(tidyverse)
 
 model_names <- list.dirs("stan/draws", full.names = FALSE, recursive = FALSE) 
-model_names
+model_names <- "exam_3l-ssm_ZARdHdARmHm_Seed20250619"
 
-for (m in model_names[2:8]) {
+for (m in model_names) {
   results_message[m] <- tryCatch ({
     file_name <- str_glue("{m}_result.html")
     quarto::quarto_render(
