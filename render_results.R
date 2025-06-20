@@ -1,11 +1,12 @@
 library(quarto)
 library(tidyverse)
 
-model_names <- list.dirs("stan/draws", full.names = FALSE, recursive = FALSE) 
+model_names <- list.dirs("stan/draws", full.names = FALSE, recursive = FALSE) |> 
+  str_subset("ssm")
 model_names
 
-for (m in model_names[2:8]) {
-  results_message[m] <- tryCatch ({
+for (m in model_names[3]) {
+  tryCatch ({
     file_name <- str_glue("{m}_result.html")
     quarto::quarto_render(
       input = "exam_3l-lmm_result.qmd",
@@ -19,5 +20,3 @@ for (m in model_names[2:8]) {
     print(str_glue("Failed: {m}\n Error messamge: {e}"))
   })
 }
-
-results_message

@@ -19,10 +19,13 @@ With Hd
 5. [3l-lmm_ZHdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZHdARmHm_Seed20250616_result.html)
 
 With ARd
-
-6. [3l-lmm_ZARdARm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdARm_Seed20250616_result.html)
-7. [3l-lmm_ZARdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdARmHm_Seed20250616_result.html)
+| Original | State-space model representation |
+|----------|----------------------------------|
+| 6. [3l-lmm_ZARdARm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdARm_Seed20250616_result.html) | 6'. [3l-ssm_ZARdARm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-ssm_ZARdARm_Seed20250616_result.html) |
+| 7. [3l-lmm_ZARdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdARmHm_Seed20250616_result.html) | 7'. [3l-ssm_ZARdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-ssm_ZARdARmHm_Seed20250616_result.html) |
 
 With ARd+Hd
 
-8. [3l-lmm_ZARdHdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdHdARmHm_Seed20250616_result.html)
+| Original | State-space model representation |
+|----------|----------------------------------|
+| 8. [3l-lmm_ZARdHdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdHdARmHm_Seed20250616_result.html) | 8'. [3l-ssm_ZARdHdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-ssm_ZARdHdARmHm_Seed20250616_result.html)  |
