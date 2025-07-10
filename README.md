@@ -27,14 +27,14 @@ With ARd
 
 | Original | State-space model representation |
 |----------|----------------------------------|
-| 6. [3l-lmm_ZARdARm](results/exam_3l-lmm_ZARdARm_Seed20250616_result.html) | 6'. [3l-ssm_ZARdARm](results/exam_3l-ssm_ZARdARm_Seed20250616_result.html) |
-| 7. [3l-lmm_ZARdARmHm](results/exam_3l-lmm_ZARdARmHm_Seed20250616_result.html) | 7'. [3l-ssm_ZARdARmHm](results/exam_3l-ssm_ZARdARmHm_Seed20250616_result.html) |
+| 6. [3l-lmm_ZARdARm](results/exam_3l-lmm_ZARdARm_Seed20250616_result.html) | 6'. [3l-ssm_ZARdARm](results/exam_3l-ssm_ZARdARm_Seed20250619_result.html) |
+| 7. [3l-lmm_ZARdARmHm](results/exam_3l-lmm_ZARdARmHm_Seed20250616_result.html) | 7'. [3l-ssm_ZARdARmHm](results/exam_3l-ssm_ZARdARmHm_Seed20250619_result.html) |
 
 With ARd+Hd+RId
 
 | Original | State-space model representation |
 |----------|----------------------------------|
-| 8. [3l-lmm_ZARdHdARmHm](results/exam_3l-lmm_ZARdHdARmHm_Seed20250616_result.html) | 8'. [3l-ssm_ZARdHdARmHm](results/exam_3l-ssm_ZARdHdARmHm_Seed20250616_result.html)  |
+| 8. [3l-lmm_ZARdHdARmHm](results/exam_3l-lmm_ZARdHdARmHm_Seed20250616_result.html) | 8'. [3l-ssm_ZARdHdARmHm](results/exam_3l-ssm_ZARdHdARmHm_Seed20250619_result.html)  |
 
 
 With ARd+Hd (without RId)
