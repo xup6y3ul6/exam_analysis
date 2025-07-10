@@ -2,7 +2,7 @@ library(quarto)
 library(tidyverse)
 
 model_names <- list.dirs("stan/draws", full.names = FALSE, recursive = FALSE) |> 
-  str_subset("ssm")
+  str_subset("woRId")
 model_names
 
 for (m in model_names[3]) {

@@ -9,6 +9,9 @@ The model names for exam study
 - ADm: autoregressive process for moments
 - Hm: heterogeneity of variances/standard deviations between moments
 
+
+## Stan 
+
 1. [3l-lmm_ZHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZHm_Seed20250616_result.html)
 2. [3l-lmm_ZARm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARm_Seed20250616_result.html)
 3. [3l-lmm_ZARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARmHm_Seed20250616_result.html)
@@ -24,8 +27,17 @@ With ARd
 | 6. [3l-lmm_ZARdARm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdARm_Seed20250616_result.html) | 6'. [3l-ssm_ZARdARm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-ssm_ZARdARm_Seed20250616_result.html) |
 | 7. [3l-lmm_ZARdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdARmHm_Seed20250616_result.html) | 7'. [3l-ssm_ZARdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-ssm_ZARdARmHm_Seed20250616_result.html) |
 
-With ARd+Hd
+With ARd+Hd+RId
 
 | Original | State-space model representation |
 |----------|----------------------------------|
 | 8. [3l-lmm_ZARdHdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdHdARmHm_Seed20250616_result.html) | 8'. [3l-ssm_ZARdHdARmHm](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-ssm_ZARdHdARmHm_Seed20250616_result.html)  |
+
+
+With ARd+Hd (without RId)
+| Original | State-space model representation |
+|----------|----------------------------------|
+| 9. [3l-lmm_ZARdHdARmHm_woRId](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-lmm_ZARdHdARmHm_woRId_Seed20250708_result.html) | 9'. [3l-ssm_ZARdHdARmHm_woRId](https://xup6y3ul6.github.io/exam_analysis/results/exam_3l-ssm_ZARdHdARmHm_woRId_Seed20250708_result.html)  |
+
+
+## Jags

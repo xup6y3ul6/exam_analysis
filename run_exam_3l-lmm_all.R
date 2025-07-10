@@ -1,7 +1,7 @@
 # Receive shell arguments outside the Rscript
 args <- commandArgs(trailingOnly = TRUE)
 
-model_name <- ifelse(length(args) >= 1, args[1], "exam_3l-lmm_ZARdHdARmHm")
+model_name <- ifelse(length(args) >= 1, args[1], "exam_3l-lmm_ZARdHdARmHm_woRId")
 seed <- ifelse(length(args) >= 2, as.integer(args[2]), 20250616)
 
 # load packages
