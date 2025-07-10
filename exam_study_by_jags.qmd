@@ -1,0 +1,613 @@
+---
+title: "Exam Study Analysis by JAGS"
+author: "Tzu-Yao Lin"
+date: last-modified
+execute:
+  eval: true
+  warning: false
+  cache: false
+params:
+  model_name: "default"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    self-contained: true
+    code-fold: false
+    code-tools: true
+---
+
+# Setup
+
+```{r}
+#| label: load packages
+library(tidyverse)
+library(cmdstanr)
+library(jagsUI)
+library(posterior)
+library(bayesplot)
+
+data <- read_rds("data/exam_data.rds")
+```
+
+
+# Load data
+
+```{r}
+N <- 101
+D <- 9
+M <- 10
+y <- array(NA, dim = c(N, D, M))
+z <- array(NA, dim = c(N, D, M))
+
+for (i in 1:N) {
+  for (j in 1:D) {
+    for (k in 1:M) {
+      y[i, j, k] <- data$Neg_aff[data$Participant == i & data$Day == j & data$Moment == k]
+      z[i, j, k] <- data$Get_grade[data$Participant == i & data$Day == j & data$Moment == k] |> as.numeric()
+    }
+  }
+}
+
+```
+
+# JAGS model
+
+
+## 1. 3l-lmm_ZRIdHdARmHm
+
+```{r}
+#| eval: false
+ 
+writeLines("
+  model {
+    # Priors
+    beta ~ dnorm(0, 0.001)
+    
+    psi_s ~ dt(0, 1/6.25, 3)T(0,) #SD for random effects for subjects
+    prec_s <- 1 / pow(psi_s, 2)
+
+    psi_b ~ dt(0, 1/6.25, 3)T(0,) #SD for random effects for knowing exam results
+    prec_b <- 1 / pow(psi_b, 2)
+
+    for (j in 1:D) {
+      psi_d[j] ~ dt(0, 1/6.25, 3)T(0,) # (hetero) SD for random effects for days
+      prec_d[j] <- 1 / pow(psi_d[j], 2)
+    }
+   
+    for (k in 1:M) {
+      sigma_epsilon[k] ~ dt(0, 1/6.25, 3)T(0,) #SD for error
+      prec_epsilon[k] <- 1 / pow(sigma_epsilon[k], 2)
+    }
+    
+    sigma_omega_m ~ dt(0, 1/6.25, 3)T(0,)
+    prec_omega_m <- 1 / pow(sigma_omega_m, 2)
+    
+    phi_m ~ dnorm(0, 4)T(-1,1)  #autocorrelation
+  
+    # Likelihood
+    for (i in 1:N) {
+      s[i] ~ dnorm(0, prec_s)
+      b[i] ~ dnorm(0, prec_b)
+
+      for (j in 1:D) {
+        d[i, j] ~ dnorm(0, prec_d[j])
+
+        omega[i, j, 1] ~ dnorm(0, prec_omega_m) # AR(1) process for the first moment 
+        for (k in 2:M) {
+          omega_lat[i, j, k] <- phi_m * omega[i, j, k - 1]
+          omega[i, j, k] ~ dnorm(omega_lat[i, j, k], prec_omega_m)
+        }
+
+        for (k in 1:M) {
+          mu[i, j, k] <- beta + s[i] + d[i, j] + z[i, j, k] * b[i] + omega[i, j, k]
+          y[i, j, k] ~ dnorm(mu[i, j, k], prec_epsilon[k])
+        }
+      }
+    }
+    
+    # Derived quantity: relative total variance (R_T)
+    tau2_m <- sigma_omega_m^2 / (1 - phi_m^2)
+    rel_T <- (psi_s^2 + mean(psi_d^2)) / (psi_s^2 + mean(psi_d^2) + tau2_m + mean(sigma_epsilon^2))
+  }
+", con = "jags/exam_3l-lmm_ZRIdHdARmHm_jags.txt")
+```
+
+```{r}
+#| eval: false
+lmm_data <- list(N = N,
+                 D = D,
+                 M = M, 
+                 y = y,
+                 z = z)
+
+inits_func1 <- function() {  
+  list(
+    beta = rnorm(1, 50, 10),
+    psi_s = runif(1, 0, 5),
+    psi_d = runif(D, 0, 5),
+    psi_b = runif(1, 0, 5),
+    phi_m = runif(1, -0.99, 0.99),
+    sigma_omega_m = runif(1, 0, 5),
+    sigma_epsilon = runif(M, 0, 5)
+  )
+}
+
+params1 <- c("beta", 
+            "s", "d", "b", 
+            "psi_s", "psi_d", "psi_b",
+            "phi_m", "sigma_omega_m", "tau2_m",
+            "sigma_epsilon",
+            "rel_T")
+
+lmm_1 <- jags(data = lmm_data,
+              inits = inits_func1,
+              parameters.to.save = params1,
+              model.file = "jags/exam_3l-lmm_ZRIdHdARmHm_jags.txt",
+              n.chains = 4,
+              n.adapt = 1000,
+              n.burnin = 6000,
+              n.iter = 8000,
+              n.thin = 15,
+              parallel = TRUE)
+
+write_rds(lmm_1, file = "jags/exam_3l-lmm_ZRIdHdARmHm_jags.rds")
+
+```
+
+```{r}
+lmm_1 <- read_rds("jags/exam_3l-lmm_ZRIdHdARmHm_jags.rds")
+#View(lmm_1$summary)
+```
+
+```{r}
+plot(lmm_1)
+```
+
+```{r}
+lmm_1_draws <- as_draws_matrix(lmm_1$samples)
+mcmc_pairs(lmm_1_draws,
+           pars = c("beta", "psi_s", "psi_b", "psi_d[1]", "psi_d[5]", "phi_m", "tau2_m",
+                    "sigma_epsilon[1]", "sigma_epsilon[5]", "rel_T"))
+```
+
+
+
+## 2. 3l-lmm_RIdHdARmHm
+
+```{r}
+#| eval: false
+writeLines("
+  model {
+    # Priors
+    beta ~ dnorm(0, 0.001)
+    
+    psi_s ~ dt(0, 1/6.25, 3)T(0,) #SD for random effects for subjects
+    prec_s <- 1 / pow(psi_s, 2)
+
+    for (j in 1:D) {
+      psi_d[j] ~ dt(0, 1/6.25, 3)T(0,) # (hetero) SD for random effects for days
+      prec_d[j] <- 1 / pow(psi_d[j], 2)
+    }
+   
+    for (k in 1:M) {
+      sigma_epsilon[k] ~ dt(0, 1/6.25, 3)T(0,) #SD for error
+      prec_epsilon[k] <- 1 / pow(sigma_epsilon[k], 2)
+    }
+    
+    sigma_omega_m ~ dt(0, 1/6.25, 3)T(0,)
+    prec_omega_m <- 1 / pow(sigma_omega_m, 2)
+    
+    phi_m ~ dnorm(0, 4)T(-1,1)  #autocorrelation
+  
+    # Likelihood
+    for (i in 1:N) {
+      s[i] ~ dnorm(0, prec_s)
+
+      for (j in 1:D) {
+        d[i, j] ~ dnorm(0, prec_d[j])
+
+        omega[i, j, 1] ~ dnorm(0, prec_omega_m) # AR(1) process for the first moment 
+        for (k in 2:M) {
+          omega_lat[i, j, k] <- phi_m * omega[i, j, k - 1]
+          omega[i, j, k] ~ dnorm(omega_lat[i, j, k], prec_omega_m)
+        }
+
+        for (k in 1:M) {
+          mu[i, j, k] <- beta + s[i] + d[i, j] + omega[i, j, k]
+          y[i, j, k] ~ dnorm(mu[i, j, k], prec_epsilon[k])
+        }
+      }
+    }
+    
+    # Derived quantity: relative total variance (R_T)
+    tau2_m <- sigma_omega_m^2 / (1 - phi_m^2)
+    rel_T <- (psi_s^2 + mean(psi_d^2)) / (psi_s^2 + mean(psi_d^2) + tau2_m + mean(sigma_epsilon^2))
+  }
+", con = "jags/exam_3l-lmm_RIdHdARmHm_jags.txt")
+```
+
+```{r}
+#| eval: false
+inits_func2 <- function() {  
+  list(
+    beta = rnorm(1, 50, 10),
+    psi_s = runif(1, 0, 5),
+    psi_d = runif(D, 0, 5),
+    phi_m = runif(1, -0.99, 0.99),
+    sigma_omega_m = runif(1, 0, 5),
+    sigma_epsilon = runif(M, 0, 5)
+  )
+}
+
+params2 <- c("beta", 
+            "s", "d", 
+            "psi_s", "psi_d", 
+            "phi_m", "sigma_omega_m", "tau2_m",
+            "sigma_epsilon",
+            "rel_T")
+
+lmm_2 <- jags(data = lmm_data,
+              inits = inits_func2,
+              parameters.to.save = params2,
+              model.file = "jags/exam_3l-lmm_RIdHdARmHm_jags.txt",
+              n.chains = 4,
+              n.adapt = 1000,
+              n.burnin = 6000,
+              n.iter = 8000,
+              n.thin = 15,
+              parallel = TRUE)
+
+write_rds(lmm_2, file = "jags/exam_3l-lmm_RIdHdARmHm_jags.rds")
+
+```
+
+```{r}
+lmm_2 <- read_rds("jags/exam_3l-lmm_RIdHdARmHm_jags.rds")
+#View(lmm_2$summary)
+```
+
+```{r}
+plot(lmm_2)
+```
+
+
+```{r}
+lmm_2_draws <- as_draws_matrix(lmm_2$samples)
+mcmc_pairs(lmm_2_draws,
+           pars = c("beta", "psi_s", "psi_d[1]", "psi_d[5]", "phi_m", "sigma_omega_m",
+                    "tau2_m", "sigma_epsilon[1]", "sigma_epsilon[5]", "rel_T")
+)
+```
+
+
+## 3. 3l-lmm_ZARdHdARmHm_woRId
+
+```{r}
+#| eval: false
+ 
+writeLines("
+  model {
+    # Priors
+    beta ~ dnorm(0, 0.001)
+    
+    psi_s ~ dt(0, 1/6.25, 3)T(0,) #SD for random effects for subjects
+    prec_s <- 1 / pow(psi_s, 2)
+
+    psi_b ~ dt(0, 1/6.25, 3)T(0,) #SD for random effects for knowing exam results
+    prec_b <- 1 / pow(psi_b, 2)
+   
+    for (k in 1:M) {
+      sigma_epsilon[k] ~ dt(0, 1/6.25, 3)T(0,) #SD for error
+      prec_epsilon[k] <- 1 / pow(sigma_epsilon[k], 2)
+    }
+    
+    sigma_omega_d ~ dt(0, 1/6.25, 3)T(0,)
+    prec_omega_d <- 1 / pow(sigma_omega_d, 2)
+
+    phi_d ~ dnorm(0, 4)T(-1, 1)
+
+    sigma_omega_m ~ dt(0, 1/6.25, 3)T(0,)
+    prec_omega_m <- 1 / pow(sigma_omega_m, 2)
+    
+    phi_m ~ dnorm(0, 4)T(-1,1)  #autocorrelation
+  
+    # Likelihood
+    for (i in 1:N) {
+      s[i] ~ dnorm(0, prec_s)
+      b[i] ~ dnorm(0, prec_b)
+
+      nu[i, 1] ~ dnorm(0, prec_omega_d)
+      for (j in 2:D) {
+        nu_lat[i, j] <- phi_d * nu[i, j - 1]
+        nu[i, j] ~ dnorm(nu_lat[i, j], prec_omega_d)
+      }
+
+      for (j in 1:D) {
+        omega[i, j, 1] ~ dnorm(0, prec_omega_m) # AR(1) process for the first moment 
+        for (k in 2:M) {
+          omega_lat[i, j, k] <- phi_m * omega[i, j, k - 1]
+          omega[i, j, k] ~ dnorm(omega_lat[i, j, k], prec_omega_m)
+        }
+
+        for (k in 1:M) {
+          mu[i, j, k] <- beta + s[i] + nu[i, j] + z[i, j, k] * b[i] + omega[i, j, k]
+          y[i, j, k] ~ dnorm(mu[i, j, k], prec_epsilon[k])
+        }
+      }
+    }
+    
+    # Derived quantity: relative total variance (R_T)
+    tau2_d <- sigma_omega_d^2 / (1 - phi_d^2)
+    tau2_m <- sigma_omega_m^2 / (1 - phi_m^2)
+    rel_T <- (psi_s^2) / (psi_s^2 + tau2_d + tau2_m + mean(sigma_epsilon^2))
+  }
+", con = "jags/exam_3l-lmm_ZARdHdARmHm_woRId_jags.txt")
+```
+
+
+
+```{r}
+#| eval: false
+inits_func3 <- function() {  
+  list(
+    beta = rnorm(1, 50, 10),
+    psi_s = runif(1, 0, 5),
+    psi_b = runif(1, 0, 5),
+    phi_d = runif(1, -0.1, 0.1),
+    phi_m = runif(1, -0.1, 0.1),
+    sigma_omega_m = runif(1, 0, 5),
+    sigma_epsilon = runif(M, 0, 5)
+  )
+}
+
+params3 <- c("beta", 
+            "s", "b", 
+            "psi_s", "psi_b",
+            "phi_d", "sigma_omega_d", "tau2_d",
+            "phi_m", "sigma_omega_m", "tau2_m",
+            "sigma_epsilon",
+            "rel_T")
+
+lmm_3 <- jags(data = lmm_data,
+              inits = inits_func3,
+              parameters.to.save = params3,
+              model.file = "jags/exam_3l-lmm_ZARdHdARmHm_woRId_jags.txt",
+              n.chains = 4,
+              n.adapt = 1000,
+              n.burnin = 6000,
+              n.iter = 8000,
+              n.thin = 15,
+              parallel = TRUE)
+
+write_rds(lmm_3, file = "jags/exam_3l-lmm_ZARdHdARmHm_woRId_jags.rds")
+```
+
+
+```{r}
+lmm_3 <- read_rds("jags/exam_3l-lmm_ZARdHdARmHm_woRId_jags.rds")
+# View(lmm_3$summary)
+```
+
+
+```{r}
+plot(lmm_3)
+```
+
+```{r}
+lmm_3_draws <- as_draws_matrix(lmm_3$samples)
+mcmc_pairs(lmm_3_draws,
+           pars = c("beta", "psi_s", "psi_b", "phi_d", "sigma_omega_d", "tau2_d",
+                    "phi_m", "sigma_omega_m", "tau2_m", 
+                    "sigma_epsilon[1]", "sigma_epsilon[5]", "rel_T")
+)
+```
+
+
+## 4. 3l-lmm_RIdARmHm
+
+```{r}
+#| eval: false
+writeLines("
+  model {
+    # Priors
+    beta ~ dnorm(0, 0.001)
+    
+    psi_s ~ dt(0, 1/6.25, 3)T(0,) #SD for random effects for subjects
+    prec_s <- 1 / pow(psi_s, 2)
+
+    psi_d ~ dt(0, 1/6.25, 3)T(0,) # (hetero) SD for random effects for days
+    prec_d <- 1 / pow(psi_d, 2)
+   
+    for (k in 1:M) {
+      sigma_epsilon[k] ~ dt(0, 1/6.25, 3)T(0,) #SD for error
+      prec_epsilon[k] <- 1 / pow(sigma_epsilon[k], 2)
+    }
+    
+    sigma_omega_m ~ dt(0, 1/6.25, 3)T(0,)
+    prec_omega_m <- 1 / pow(sigma_omega_m, 2)
+    
+    phi_m ~ dnorm(0, 4)T(-1,1)  #autocorrelation
+  
+    # Likelihood
+    for (i in 1:N) {
+      s[i] ~ dnorm(0, prec_s)
+
+      for (j in 1:D) {
+        d[i, j] ~ dnorm(0, prec_d)
+
+        omega[i, j, 1] ~ dnorm(0, prec_omega_m) # AR(1) process for the first moment 
+        for (k in 2:M) {
+          omega_lat[i, j, k] <- phi_m * omega[i, j, k - 1]
+          omega[i, j, k] ~ dnorm(omega_lat[i, j, k], prec_omega_m)
+        }
+
+        for (k in 1:M) {
+          mu[i, j, k] <- beta + s[i] + d[i, j] + omega[i, j, k]
+          y[i, j, k] ~ dnorm(mu[i, j, k], prec_epsilon[k])
+        }
+      }
+    }
+    
+    # Derived quantity: relative total variance (R_T)
+    tau2_m <- sigma_omega_m^2 / (1 - phi_m^2)
+    rel_T <- (psi_s^2 + mean(psi_d^2)) / (psi_s^2 + mean(psi_d^2) + tau2_m + mean(sigma_epsilon^2))
+  }
+", con = "jags/exam_3l-lmm_RIdARmHm_jags.txt")
+```
+
+
+
+```{r}
+#| eval: false
+inits_func4 <- function() {  
+  list(
+    beta = rnorm(1, 50, 10),
+    psi_s = runif(1, 0, 5),
+    phi_m = runif(1, -0.1, 0.1),
+    sigma_omega_m = runif(1, 0, 5),
+    sigma_epsilon = runif(M, 0, 5)
+  )
+}
+
+params4 <- c("beta", 
+             "s", "d", 
+             "psi_s", "psi_d",
+             "phi_m", "sigma_omega_m", "tau2_m",
+             "sigma_epsilon",
+             "rel_T")
+
+lmm_4 <- jags(data = lmm_data,
+                 inits = inits_func4,
+                 parameters.to.save = params4,
+                 model.file = "jags/exam_3l-lmm_RIdARmHm_jags.txt",
+                 n.chains = 4,
+                 n.adapt = 1000,
+                 n.burnin = 6000,
+                 n.iter = 8000,
+                 n.thin = 15,
+                 parallel = TRUE)
+
+write_rds(lmm_4, file = "jags/exam_3l-lmm_RIdARmHm_jags.rds")
+```
+
+
+```{r}
+lmm_4 <- read_rds("jags/exam_3l-lmm_RIdARmHm_jags.rds")
+# View(lmm_4$summary)
+```
+
+
+```{r}
+plot(lmm_4)
+```
+
+```{r}
+lmm_4_draws <- as_draws_matrix(lmm_4$samples)
+mcmc_pairs(lmm_4_draws,
+           pars = c("beta", "psi_s", "psi_d", 
+                    "phi_m", "sigma_omega_m", "tau2_m", 
+                    "sigma_epsilon[1]", "sigma_epsilon[5]", "rel_T"))
+```
+
+
+## 5. 3l-lmm_RIdARm
+
+```{r}
+#| eval: false
+writeLines("
+  model {
+    # Priors
+    beta ~ dnorm(0, 0.001)
+    
+    psi_s ~ dt(0, 1/6.25, 3)T(0,) #SD for random effects for subjects
+    prec_s <- 1 / pow(psi_s, 2)
+
+    psi_d ~ dt(0, 1/6.25, 3)T(0,) # (hetero) SD for random effects for days
+    prec_d <- 1 / pow(psi_d, 2)
+   
+    sigma_epsilon ~ dt(0, 1/6.25, 3)T(0,) #SD for error
+    prec_epsilon <- 1 / pow(sigma_epsilon, 2)
+    
+    sigma_omega_m ~ dt(0, 1/6.25, 3)T(0,)
+    prec_omega_m <- 1 / pow(sigma_omega_m, 2)
+    
+    phi_m ~ dnorm(0, 4)T(-1,1)  #autocorrelation
+  
+    # Likelihood
+    for (i in 1:N) {
+      s[i] ~ dnorm(0, prec_s)
+
+      for (j in 1:D) {
+        d[i, j] ~ dnorm(0, prec_d)
+
+        omega[i, j, 1] ~ dnorm(0, prec_omega_m) # AR(1) process for the first moment 
+        for (k in 2:M) {
+          omega_lat[i, j, k] <- phi_m * omega[i, j, k - 1]
+          omega[i, j, k] ~ dnorm(omega_lat[i, j, k], prec_omega_m)
+        }
+
+        for (k in 1:M) {
+          mu[i, j, k] <- beta + s[i] + d[i, j] + omega[i, j, k]
+          y[i, j, k] ~ dnorm(mu[i, j, k], prec_epsilon)
+        }
+      }
+    }
+    
+    # Derived quantity: relative total variance (R_T)
+    tau2_m <- sigma_omega_m^2 / (1 - phi_m^2)
+    rel_T <- (psi_s^2 + mean(psi_d^2)) / (psi_s^2 + mean(psi_d^2) + tau2_m + sigma_epsilon^2)
+  }
+", con = "jags/exam_3l-lmm_RIdARm_jags.txt")
+```
+
+
+```{r}
+#| eval: false
+inits_func5 <- function() {  
+  list(
+    beta = rnorm(1, 50, 10),
+    psi_s = runif(1, 0, 5),
+    phi_m = runif(1, -0.1, 0.1),
+    sigma_omega_m = runif(1, 0, 5),
+    sigma_epsilon = runif(1, 0, 5)
+  )
+}
+
+params5 <- c("beta", 
+            "s", "d", 
+            "psi_s", "psi_d",
+            "phi_m", "sigma_omega_m", "tau2_m",
+            "sigma_epsilon",
+            "rel_T")
+
+lmm_5 <- jags(data = lmm_data,
+              inits = inits_func5,
+              parameters.to.save = params5,
+              model.file = "jags/exam_3l-lmm_RIdARm_jags.txt",
+              n.chains = 4,
+              n.adapt = 1000,
+              n.burnin = 6000,
+              n.iter = 8000,
+              n.thin = 15,
+              parallel = TRUE)
+
+write_rds(lmm_5, file = "jags/exam_3l-lmm_RIdARm_jags.rds")
+```
+
+```{r}
+lmm_5 <- read_rds("jags/exam_3l-lmm_RIdARm_jags.rds")
+#View(lmm_5$summary)
+```
+
+```{r}
+plot(lmm_5)
+```
+```{r}
+lmm_5_draws <- as_draws_matrix(lmm_5$samples)
+mcmc_pairs(lmm_5_draws,
+           pars = c("beta", "psi_s", "psi_d", 
+                    "phi_m", "sigma_omega_m", "tau2_m", 
+                    "sigma_epsilon",  "rel_T"))
+```

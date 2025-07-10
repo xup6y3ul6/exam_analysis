@@ -46,7 +46,7 @@ color_scheme_set("blue")
 data <- read_rds("data/exam_data.rds")
 
 model_name <- params$model_name
-# model_name <- "exam_3l-lmm_ZHm_Seed20250616"
+model_name <- "exam_3l-ssm_ZARdHdARmHm_Seed20250619"
 
 is_ARd <- str_detect(model_name, "ARd")
 is_Hd <- str_detect(model_name, "Hd")
@@ -64,8 +64,8 @@ lmm_fit <- as_cmdstan_fit(list.files(str_glue("stan/draws/{model_name}"),
 # write_rds(lmm_fit, str_glue("stan/{model_name}.rds"))
 # lmm_fit <- read_rds("stan/{model_name}.rds")
 
-# lmm_summary <- lmm_fit$summary()
-# write_csv(lmm_summary, str_glue("stan/summary/{model_name}_summary.csv"))
+lmm_summary <- lmm_fit$summary(NULL, c("mean"))
+write_csv(lmm_summary, str_glue("stan/summary/{model_name}_summary.csv"))
 ```
 
 ```{r}

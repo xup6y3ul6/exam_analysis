@@ -6,6 +6,9 @@
 stan/draws/
 stan/*.exe
 stan/*.rds
+
+jags/*.rds
+
 job/log/
 log/
 

@@ -1,7 +1,7 @@
 # Receive shell arguments outside the Rscript
 args <- commandArgs(trailingOnly = TRUE)
 
-model_name <- ifelse(length(args) >= 1, args[1], "exam_3l-lmm_ZARdHdARmHm")
+model_name <- ifelse(length(args) >= 1, args[1], "exam_3l-lmm_ZARdHdARmHm_woRId")
 seed <- ifelse(length(args) >= 2, as.integer(args[2]), 20250616)
 
 # load packages
@@ -48,7 +48,7 @@ lmm_fit <- lmm$sample(data = lmm_data,
                       output_dir = output_dir_lmm, 
                       iter_warmup = 4000, 
                       iter_sampling = 4000,
-                      thin = 1, 
+                      thin = 10, 
                       seed = seed, 
                       refresh = 1000, 
                       show_messages = TRUE)
