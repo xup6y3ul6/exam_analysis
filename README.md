@@ -1,13 +1,15 @@
 # exam_analysis
 
-The model names for exam study
-- 3l: three-level
-- lmm: linear mixed-effect model
-- Z: additional random effect
-- ARd: autoregressive process for days
-- Hd: heterogeneity of variances/standard deviations between days
-- ADm: autoregressive process for moments
-- Hm: heterogeneity of variances/standard deviations between moments
+**Check the results from this [website](https://xup6y3ul6.github.io/exam_analysis/).**
+
+> The model names for the exam study
+> - 3l: three-level
+> - lmm: linear mixed-effect model
+> - Z: additional random effect
+> - ARd: autoregressive process for days
+> - Hd: heterogeneity of variances/standard deviations between days
+> - ADm: autoregressive process for moments
+> - Hm: heterogeneity of variances/standard deviations between moments
 
 
 ## Stan 
@@ -22,6 +24,7 @@ With Hd
 5. [3l-lmm_ZHdARmHm](results/exam_3l-lmm_ZHdARmHm_Seed20250616_result.html)
 
 With ARd
+
 | Original | State-space model representation |
 |----------|----------------------------------|
 | 6. [3l-lmm_ZARdARm](results/exam_3l-lmm_ZARdARm_Seed20250616_result.html) | 6'. [3l-ssm_ZARdARm](results/exam_3l-ssm_ZARdARm_Seed20250616_result.html) |
@@ -35,6 +38,7 @@ With ARd+Hd+RId
 
 
 With ARd+Hd (without RId)
+
 | Original | State-space model representation |
 |----------|----------------------------------|
 | 9. [3l-lmm_ZARdHdARmHm_woRId](results/exam_3l-lmm_ZARdHdARmHm_woRId_Seed20250708_result.html) | 9'. [3l-ssm_ZARdHdARmHm_woRId](results/exam_3l-ssm_ZARdHdARmHm_woRId_Seed20250708_result.html)  |
